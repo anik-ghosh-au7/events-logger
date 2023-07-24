@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
-	"github.com/anik-ghosh-au7/events-logger/database"
 	"github.com/gorilla/mux"
 )
 
@@ -38,10 +38,51 @@ type Table struct {
 	Name   string `json:"name"`
 }
 
+type InMemoryDB struct {
+	mu   sync.RWMutex
+	data map[string]Payload
+}
+
+func NewInMemoryDB() *InMemoryDB {
+	return &InMemoryDB{
+		data: make(map[string]Payload),
+	}
+}
+
+func (db *InMemoryDB) Set(key string, value Payload) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	db.data[key] = value
+	return nil
+}
+
+func (db *InMemoryDB) Get(key string) (Payload, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	value, ok := db.data[key]
+	if !ok {
+		return Payload{}, fmt.Errorf("no value found for key: %v", key)
+	}
+	return value, nil
+}
+
+func (db *InMemoryDB) Keys() ([]string, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	keys := make([]string, 0, len(db.data))
+	for k := range db.data {
+		keys = append(keys, k)
+	}
+	return keys, nil
+}
+
 func main() {
 	r := mux.NewRouter()
 
-	client := database.NewClient()
+	db := NewInMemoryDB()
 
 	r.HandleFunc("/webhook", func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
@@ -54,9 +95,9 @@ func main() {
 			return
 		}
 
-		err = client.Set(payload.ID, payload, 0).Err()
+		err = db.Set(payload.ID, payload)
 		if err != nil {
-			log.Printf("Error saving to Redis: %v", err)
+			log.Printf("Error saving to in-memory DB: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -65,15 +106,9 @@ func main() {
 	}).Methods("POST")
 
 	r.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
-		var keys []string
-
-		iter := client.Scan(0, "*", 0).Iterator()
-		for iter.Next() {
-			keys = append(keys, iter.Val())
-		}
-
-		if err := iter.Err(); err != nil {
-			log.Printf("Error fetching from Redis: %v", err)
+		keys, err := db.Keys()
+		if err != nil {
+			log.Printf("Error fetching from in-memory DB: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -86,15 +121,15 @@ func main() {
 		vars := mux.Vars(r)
 		id := vars["id"]
 
-		val, err := client.Get(id).Result()
+		payload, err := db.Get(id)
 		if err != nil {
-			log.Printf("Error fetching from Redis: %v", err)
+			log.Printf("Error fetching from in-memory DB: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(val))
+		json.NewEncoder(w).Encode(payload)
 	}).Methods("GET")
 
 	fmt.Println("Starting server on port: 8080")

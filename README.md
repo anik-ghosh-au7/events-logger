@@ -68,7 +68,7 @@ go run main.go
 
 The application will start a server and listen on port 8080.
 
-> Note: If you're testing this locally and want to connect it to Hasura, you'll need to expose your local server to the internet. Tools like ngrok can help with this.
+> Note: If you're testing this locally and want to connect it to Hasura, you'll need to expose your local server to the internet. Tools like [ngrok](https://ngrok.com/) can help with this.
 
 ## Notes
 

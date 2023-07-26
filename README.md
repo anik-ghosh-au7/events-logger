@@ -16,11 +16,11 @@ This is the entry point of the application. It sets up HTTP routes and handles i
 
 3. `/events/{id}`: This endpoint accepts `GET` requests and returns the event corresponding to the provided `id`. If no such event is found in the database, it returns an error.
 
+The `Payload` structure defined here represents an event. It includes various fields like `Event`, `CreatedAt`, `ID`, `Trigger`, and `Table`, which capture different aspects of the event. This structure is designed to parse the request payload as per the Hasura specification.
+
 ### `database/db.go`
 
-This file contains code related to the in-memory database used for storing events. It defines the `Payload` structure and the `InMemoryDB` type.
-
-The `Payload` structure represents an event. It includes various fields like `Event`, `CreatedAt`, `ID`, `Trigger`, and `Table`, which capture different aspects of the event. This structure is designed to parse the request payload as per the Hasura specification.
+This file contains code related to the in-memory database used for storing events. It also defines the `InMemoryDB` type.
 
 ## Integration with Hasura
 

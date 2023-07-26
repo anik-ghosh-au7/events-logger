@@ -10,6 +10,34 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type Payload struct {
+	Event     Event   `json:"event"`
+	CreatedAt string  `json:"created_at"`
+	ID        string  `json:"id"`
+	Trigger   Trigger `json:"trigger"`
+	Table     Table   `json:"table"`
+}
+
+type Event struct {
+	SessionVariables map[string]string `json:"session_variables"`
+	Op               string            `json:"op"`
+	Data             Data              `json:"data"`
+}
+
+type Data struct {
+	Old interface{} `json:"old"`
+	New interface{} `json:"new"`
+}
+
+type Trigger struct {
+	Name string `json:"name"`
+}
+
+type Table struct {
+	Schema string `json:"schema"`
+	Name   string `json:"name"`
+}
+
 func main() {
 	r := mux.NewRouter()
 
@@ -18,7 +46,7 @@ func main() {
 	r.HandleFunc("/webhook", func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 
-		var payload database.Payload
+		var payload Payload
 		err := decoder.Decode(&payload)
 		if err != nil {
 			log.Printf("Error decoding JSON: %v", err)
